@@ -1,0 +1,1658 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CDQuad — Межмасштабный перенос графовых моделей и сертификация морфометрии | Довгий А. С.</title>
+  <meta name="description" content="Программно-алгоритмический комплекс CDQuad: перенос без дообучения конвекционно-диффузионных графовых моделей между разрешениями и статистическая сертификация морфометрии изображений. ФПМИ БГУ, Довгий А. С.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-deep: #061326;
+      --bg-navy: #0b213f;
+      --bg-page: #f3f7fc;
+      --surface: #ffffff;
+      --surface-soft: #eef4fb;
+      --text-main: #0f1f38;
+      --text-muted: #4b5e7a;
+      --cyan: #22d3ee;
+      --cyan-dark: #0284c7;
+      --teal: #14b8a6;
+      --amber: #f59e0b;
+      --amber-deep: #d97706;
+      --emerald: #10b981;
+      --rose: #ef4444;
+      --border: #dbe6f3;
+      --shadow-sm: 0 4px 16px rgba(11, 33, 63, 0.06);
+      --shadow-lg: 0 18px 42px rgba(8, 25, 52, 0.12);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-main);
+      line-height: 1.62;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    code, pre, .mono {
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    /* Sticky Glass Navbar */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(6, 19, 38, 0.88);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.16);
+      padding: 0 24px;
+    }
+    .nav-inner {
+      max-width: 1220px;
+      margin: 0 auto;
+      height: 66px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 800;
+      font-size: 17px;
+      letter-spacing: -0.02em;
+    }
+    .brand-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--cyan), var(--amber));
+      box-shadow: 0 0 12px rgba(34, 211, 238, 0.85);
+    }
+    .brand span {
+      font-weight: 500;
+      color: #93c5fd;
+      font-size: 13px;
+      padding-left: 8px;
+      border-left: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+    }
+    .nav-links a {
+      color: #cbd5e1;
+      text-decoration: none;
+      font-size: 13.5px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--cyan); }
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn-nav {
+      padding: 8px 14px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-nav-outline {
+      color: #e2e8f0;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .btn-nav-outline:hover {
+      border-color: var(--cyan);
+      color: #fff;
+      background: rgba(34, 211, 238, 0.12);
+    }
+    .btn-nav-primary {
+      color: #061326;
+      background: linear-gradient(135deg, #38bdf8, #2dd4bf);
+      box-shadow: 0 4px 14px rgba(34, 211, 238, 0.32);
+    }
+    .btn-nav-primary:hover { transform: translateY(-1px); filter: brightness(1.06); }
+
+    /* Hero Section with Interactive Delaunay Canvas */
+    .hero {
+      position: relative;
+      overflow: hidden;
+      background: radial-gradient(circle at 78% 28%, rgba(245, 158, 11, 0.18), transparent 42%),
+                  radial-gradient(circle at 20% 70%, rgba(34, 211, 238, 0.18), transparent 48%),
+                  linear-gradient(145deg, #040d1a 0%, #091e3a 55%, #0d2b50 100%);
+      color: #fff;
+      padding: 68px 24px 76px;
+    }
+    #meshCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.55;
+      pointer-events: none;
+    }
+    .hero-inner {
+      position: relative;
+      z-index: 2;
+      max-width: 1220px;
+      margin: 0 auto;
+    }
+    .hero-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 13px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 600;
+      background: rgba(15, 38, 71, 0.72);
+      border: 1px solid rgba(56, 189, 248, 0.32);
+      color: #bae6fd;
+    }
+    .chip-amber {
+      border-color: rgba(245, 158, 11, 0.45);
+      color: #fde68a;
+    }
+    .hero h1 {
+      margin: 0 0 18px;
+      font-size: clamp(28px, 4.1vw, 48px);
+      line-height: 1.14;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      max-width: 960px;
+      background: linear-gradient(95deg, #ffffff 0%, #e0f2fe 62%, #67e8f9 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-lead {
+      font-size: clamp(16px, 1.45vw, 19px);
+      color: #cbd5e1;
+      max-width: 850px;
+      margin: 0 0 26px;
+      line-height: 1.6;
+    }
+    .author-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px 28px;
+      padding: 15px 20px;
+      border-radius: 13px;
+      background: rgba(9, 28, 54, 0.68);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      margin-bottom: 28px;
+      font-size: 14px;
+      color: #e2e8f0;
+      max-width: fit-content;
+    }
+    .author-bar strong { color: #fff; }
+    .author-bar span.sep { color: #38bdf8; }
+
+    .hero-cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-bottom: 44px;
+    }
+    .btn-hero {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 13px 22px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.22s ease;
+    }
+    .btn-hero-main {
+      background: linear-gradient(135deg, #38bdf8 0%, #14b8a6 100%);
+      color: #041322;
+      box-shadow: 0 10px 26px rgba(20, 184, 166, 0.35);
+    }
+    .btn-hero-main:hover { transform: translateY(-2px); box-shadow: 0 14px 32px rgba(34, 211, 238, 0.45); }
+    .btn-hero-amber {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(234, 88, 12, 0.22));
+      color: #fef3c7;
+      border: 1px solid rgba(245, 158, 11, 0.55);
+    }
+    .btn-hero-amber:hover { background: rgba(245, 158, 11, 0.3); transform: translateY(-2px); }
+    .btn-hero-ghost {
+      background: rgba(255, 255, 255, 0.06);
+      color: #f1f5f9;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+    .btn-hero-ghost:hover { border-color: #38bdf8; background: rgba(56, 189, 248, 0.12); transform: translateY(-2px); }
+
+    /* KPI Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    .kpi-card {
+      background: rgba(11, 31, 59, 0.76);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(56, 189, 248, 0.24);
+      border-radius: 15px;
+      padding: 20px 20px 18px;
+      transition: transform 0.22s, border-color 0.22s;
+    }
+    .kpi-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(56, 189, 248, 0.65);
+    }
+    .kpi-tag {
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #7dd3fc;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .kpi-val {
+      font-size: 31px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: #fff;
+      line-height: 1.15;
+      margin-bottom: 8px;
+    }
+    .kpi-val span.accent { color: var(--amber); }
+    .kpi-desc {
+      font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.45;
+      margin: 0;
+    }
+
+    /* Main Container & Sections */
+    .container {
+      max-width: 1220px;
+      margin: 0 auto;
+      padding: 56px 24px 20px;
+    }
+    .section-block {
+      margin-bottom: 64px;
+    }
+    .section-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 26px;
+    }
+    .eyebrow {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--cyan-dark);
+      margin-bottom: 6px;
+    }
+    .section-title {
+      margin: 0;
+      font-size: clamp(23px, 2.6vw, 31px);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--bg-navy);
+    }
+    .section-sub {
+      margin: 6px 0 0;
+      color: var(--text-muted);
+      font-size: 15.5px;
+      max-width: 780px;
+    }
+
+    /* Contrast Problem vs Solution Cards */
+    .problem-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+    }
+    .panel-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 28px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+    .panel-card.warn { border-top: 4px solid var(--amber); }
+    .panel-card.good { border-top: 4px solid var(--teal); }
+    .panel-badge {
+      display: inline-block;
+      padding: 4px 11px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .panel-card.warn .panel-badge { background: #fef3c7; color: #92400e; }
+    .panel-card.good .panel-badge { background: #ccfbf1; color: #0f766e; }
+    .panel-card h3 {
+      margin: 0 0 12px;
+      font-size: 20px;
+      color: var(--bg-navy);
+    }
+    .panel-card ul {
+      margin: 12px 0 0;
+      padding-left: 20px;
+      color: #334155;
+      font-size: 14.5px;
+    }
+    .panel-card li { margin-bottom: 8px; }
+
+    /* Interactive Presentation Viewer */
+    .deck-shell {
+      background: linear-gradient(160deg, #07162c, #0c2344);
+      border-radius: 20px;
+      padding: 24px;
+      color: #fff;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid rgba(56, 189, 248, 0.22);
+    }
+    .deck-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .deck-status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      color: #bae6fd;
+      font-weight: 600;
+    }
+    .deck-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .deck-btn {
+      background: rgba(255, 255, 255, 0.09);
+      color: #fff;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 9px;
+      padding: 8px 14px;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .deck-btn:hover { background: rgba(56, 189, 248, 0.22); border-color: var(--cyan); }
+    .deck-stage {
+      position: relative;
+      background: #030a14;
+      border-radius: 13px;
+      overflow: hidden;
+      aspect-ratio: 16 / 9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    .deck-stage img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      cursor: zoom-in;
+    }
+    .deck-nav-zone {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(6, 19, 38, 0.72);
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .deck-nav-zone:hover { background: var(--cyan-dark); border-color: var(--cyan); }
+    .deck-nav-zone.prev { left: 14px; }
+    .deck-nav-zone.next { right: 14px; }
+    .deck-progress {
+      height: 4px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 4px;
+      margin: 14px 0;
+      overflow: hidden;
+    }
+    .deck-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--cyan), var(--teal), var(--amber));
+      width: 6.66%;
+      transition: width 0.22s ease;
+    }
+    .deck-thumbs {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      scrollbar-width: thin;
+    }
+    .deck-thumb {
+      flex: 0 0 124px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 2px solid transparent;
+      opacity: 0.58;
+      cursor: pointer;
+      transition: all 0.18s;
+      position: relative;
+      background: #040d1a;
+    }
+    .deck-thumb:hover { opacity: 0.9; }
+    .deck-thumb.active {
+      opacity: 1;
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.28);
+    }
+    .deck-thumb img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
+    .deck-thumb span {
+      position: absolute;
+      bottom: 4px;
+      right: 5px;
+      background: rgba(6, 19, 38, 0.85);
+      color: #e2e8f0;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    /* Mathematical Formulation Cards */
+    .math-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      margin-bottom: 28px;
+    }
+    .math-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: var(--shadow-sm);
+    }
+    .math-step {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--cyan-dark);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+    .math-card h3 {
+      margin: 0 0 12px;
+      font-size: 17.5px;
+      color: var(--bg-navy);
+    }
+    .formula-box {
+      background: #f8fafd;
+      border: 1px solid #e2ecf7;
+      border-left: 3px solid var(--cyan-dark);
+      border-radius: 9px;
+      padding: 12px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      color: #0b213f;
+      overflow-x: auto;
+      margin-bottom: 12px;
+      line-height: 1.55;
+    }
+    .math-card p {
+      margin: 0;
+      font-size: 13.8px;
+      color: var(--text-muted);
+    }
+
+    /* Interactive Software Architecture Explorer */
+    .arch-explorer {
+      display: grid;
+      grid-template-columns: 330px 1fr;
+      gap: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: var(--shadow-sm);
+    }
+    .arch-tabs {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .arch-tab {
+      text-align: left;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #f8fbff;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .arch-tab:hover { border-color: #7dd3fc; background: #f0f7ff; }
+    .arch-tab.active {
+      background: linear-gradient(135deg, #0b213f, #133863);
+      color: #fff;
+      border-color: #0b213f;
+      box-shadow: 0 8px 20px rgba(11, 33, 63, 0.18);
+    }
+    .arch-tab-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13.5px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .arch-tab.active .arch-tab-name span { color: var(--cyan); }
+    .arch-tab-sub {
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+    .arch-tab.active .arch-tab-sub { color: #cbd5e1; }
+    .arch-detail {
+      background: #09192f;
+      color: #e2e8f0;
+      border-radius: 14px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .arch-detail-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+    }
+    .arch-detail h3 { margin: 0; color: #fff; font-size: 19px; }
+    .arch-complexity {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(34, 211, 238, 0.14);
+      color: #67e8f9;
+      border: 1px solid rgba(34, 211, 238, 0.35);
+    }
+    .arch-detail p { color: #cbd5e1; font-size: 14.2px; margin: 0 0 16px; }
+    .code-snippet {
+      margin: 0;
+      padding: 16px;
+      background: #050e1c;
+      border-radius: 10px;
+      border: 1px solid rgba(56, 189, 248, 0.18);
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: #bae6fd;
+      overflow-x: auto;
+    }
+
+    /* Interactive Figures & Benchmarks */
+    .fig-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin-bottom: 18px;
+    }
+    .fig-tab {
+      padding: 9px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-main);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .fig-tab:hover { border-color: var(--cyan-dark); }
+    .fig-tab.active {
+      background: var(--bg-navy);
+      color: #fff;
+      border-color: var(--bg-navy);
+    }
+    .fig-showcase {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 28px;
+    }
+    .fig-img-wrap {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #edf2f9;
+      padding: 12px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .fig-img-wrap img {
+      max-width: 100%;
+      max-height: 490px;
+      object-fit: contain;
+      border-radius: 6px;
+      cursor: zoom-in;
+    }
+    .fig-caption {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding-top: 8px;
+      border-top: 1px solid #edf2f9;
+    }
+    .fig-caption h4 { margin: 0 0 6px; font-size: 17px; color: var(--bg-navy); }
+    .fig-caption p { margin: 0; font-size: 14px; color: var(--text-muted); max-width: 880px; }
+
+    /* Benchmark Table */
+    .bench-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+      overflow-x: auto;
+    }
+    table.bench-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .bench-table th {
+      text-align: left;
+      padding: 12px 14px;
+      background: #f1f6fc;
+      color: var(--bg-navy);
+      font-weight: 700;
+      border-bottom: 2px solid #d5e2f2;
+      white-space: nowrap;
+    }
+    .bench-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #eaf0f8;
+      vertical-align: middle;
+    }
+    .bench-table tr.highlight { background: #ecfdf5; font-weight: 600; }
+    .badge-win {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: #d1fae5;
+      color: #065f46;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .badge-fail {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: #fee2e2;
+      color: #991b1b;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* Publications & Reproducibility */
+    .pub-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .pub-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      padding: 20px 22px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .pub-num {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--cyan-dark);
+      background: #e0f2fe;
+      padding: 3px 9px;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      width: fit-content;
+    }
+    .pub-title {
+      font-weight: 700;
+      color: var(--bg-navy);
+      font-size: 15.5px;
+      margin: 0 0 8px;
+    }
+    .pub-venue {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      margin: 0 0 12px;
+    }
+    .pub-link {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--cyan-dark);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .pub-link:hover { text-decoration: underline; }
+
+    .repro-box {
+      display: grid;
+      grid-template-columns: 1fr 240px;
+      gap: 24px;
+      align-items: center;
+      background: linear-gradient(135deg, #081a33, #0f2c54);
+      color: #fff;
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: var(--shadow-lg);
+    }
+    .repro-box h3 { margin: 0 0 8px; font-size: 21px; }
+    .repro-box p { margin: 0 0 16px; color: #cbd5e1; font-size: 14.5px; }
+    .cli-wrap {
+      position: relative;
+      background: #040d1a;
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 11px;
+      padding: 15px 16px;
+    }
+    .cli-wrap pre {
+      margin: 0;
+      font-size: 12.8px;
+      color: #67e8f9;
+      overflow-x: auto;
+      line-height: 1.6;
+    }
+    .copy-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(56, 189, 248, 0.16);
+      color: #e0f2fe;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 7px;
+      padding: 5px 11px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .copy-btn:hover { background: rgba(56, 189, 248, 0.3); }
+    .qr-card {
+      background: #fff;
+      color: var(--bg-navy);
+      border-radius: 14px;
+      padding: 16px;
+      text-align: center;
+    }
+    .qr-card img { width: 156px; height: 156px; display: block; margin: 0 auto 8px; }
+    .qr-card span { font-size: 12px; font-weight: 700; display: block; color: var(--text-muted); }
+
+    /* Lightbox Modal */
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      background: rgba(3, 10, 22, 0.92);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox img {
+      max-width: 96vw;
+      max-height: 92vh;
+      border-radius: 10px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      background: #fff;
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 20px;
+      right: 24px;
+      background: rgba(255,255,255,0.14);
+      color: #fff;
+      border: none;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      font-size: 22px;
+      cursor: pointer;
+    }
+
+    footer {
+      background: var(--bg-deep);
+      color: #94a3b8;
+      padding: 36px 24px;
+      font-size: 13.5px;
+      border-top: 1px solid rgba(148, 163, 184, 0.14);
+    }
+    .footer-inner {
+      max-width: 1220px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .footer-inner a { color: #7dd3fc; text-decoration: none; }
+    .footer-inner a:hover { text-decoration: underline; }
+
+    @media (max-width: 980px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .problem-grid, .math-grid, .arch-explorer, .pub-grid, .repro-box {
+        grid-template-columns: 1fr;
+      }
+      .nav-links { display: none; }
+      .qr-card { max-width: 240px; margin: 0 auto; }
+    }
+    @media (max-width: 560px) {
+      .kpi-grid { grid-template-columns: 1fr; }
+      .hero { padding: 48px 18px 54px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sticky Navigation -->
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="#" class="brand">
+        <i class="brand-dot"></i>
+        CDQuad <span>ФПМИ БГУ · ОИТ 2026</span>
+      </a>
+      <div class="nav-links">
+        <a href="#overview">Проблема и решение</a>
+        <a href="#presentation">Презентация (15 слайдов)</a>
+        <a href="#architecture">Архитектура и метод</a>
+        <a href="#benchmarks">Эксперименты</a>
+        <a href="#publications">Публикации и код</a>
+      </div>
+      <div class="nav-actions">
+        <a class="btn-nav btn-nav-outline" href="https://github.com/ihuod/BSU-FIT" target="_blank" rel="noopener">GitHub</a>
+        <a class="btn-nav btn-nav-primary" href="../ДовгийАС_Реферат.pdf" target="_blank" rel="noopener">Реферат PDF</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <header class="hero">
+    <canvas id="meshCanvas"></canvas>
+    <div class="hero-inner">
+      <div class="hero-badges">
+        <span class="chip">Белорусский государственный университет · ФПМИ</span>
+        <span class="chip">Дисциплина «Основы информационных технологий»</span>
+        <span class="chip chip-amber">Open Source · Python 3.11 / SciPy CSR · MIT</span>
+      </div>
+
+      <h1>Межмасштабный перенос графовых моделей и сертификация морфометрии изображений</h1>
+
+      <p class="hero-lead">
+        Открытый программно-алгоритмический комплекс <strong>CDQuad</strong> для обучения физически интерпретируемых конвекционно-диффузионных моделей на грубых бинированных кадрах и их переноса без дообучения (<em>zero-shot super-resolution</em>) на сетки произвольного разрешения с гарантированной статистической границей ошибки морфометрии за миллисекундное время.
+      </p>
+
+      <div class="author-bar">
+        <div><strong>Автор:</strong> Довгий Александр Сергеевич</div>
+        <span class="sep">•</span>
+        <div><strong>Кафедра:</strong> ТВиМС ФПМИ БГУ (7-06-0533-05)</div>
+        <span class="sep">•</span>
+        <div><strong>Научный руководитель:</strong> д-р техн. наук, доц. А. М. Недзьведь</div>
+      </div>
+
+      <div class="hero-cta">
+        <a class="btn-hero btn-hero-main" href="../ДовгийАС_Реферат.pdf" target="_blank" rel="noopener">
+          📄 Читать реферат (PDF, 33 стр.)
+        </a>
+        <a class="btn-hero btn-hero-amber" href="../Certified_Cross-Scale_Graph_Morphometry.pdf" target="_blank" rel="noopener">
+          🎞️ Скачать презентацию (15 слайдов)
+        </a>
+        <a class="btn-hero btn-hero-ghost" href="https://github.com/ihuod/BSU-FIT" target="_blank" rel="noopener">
+          💻 Репозиторий GitHub (ihuod/BSU-FIT)
+        </a>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-tag">Суперразрешение без дообучения</div>
+          <div class="kpi-val">2,28<span class="accent">×</span></div>
+          <p class="kpi-desc">Снижение ошибки поля L²(Ω) при переносе с грубой решётки 18×18 на 54×54 (рост узлов в 8,4×; в 29,1× точнее AdaCDE)</p>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-tag">Двойственный дефект в H⁻¹</div>
+          <div class="kpi-val">r = <span class="accent">0,9803</span></div>
+          <p class="kpi-desc">Корреляция эллиптического дефекта δ̂₋₁(G) с истинной ошибкой переноса на 160 сетках Делоне (против 0,5590 у L²-остатка)</p>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-tag">Конформная калибровка</div>
+          <div class="kpi-val">−36,1<span class="accent"> %</span></div>
+          <p class="kpi-desc">Сужение ширины 90 %-го доверительного интервала без запуска эталонного решателя (расчёт за 4,2 мс на CPU)</p>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-tag">Живая микроскопия клетки</div>
+          <div class="kpi-val">4,1–4,4<span class="accent">×</span></div>
+          <p class="kpi-desc">Снижение межмасштабного дрейфа прогноза (30×30 → 90×90) на реальной серии ядра NPCsingleNucleus.tif</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- Overview: Problem vs Solution -->
+    <section id="overview" class="section-block">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Научно-технологическая мотивация</div>
+          <h2 class="section-title">Почему комбинаторные графовые сети теряют перенос при смене разрешения?</h2>
+          <p class="section-sub">Сравнение дискретных 1-шаговых графовых ОДУ и континуально-согласованного вариационного оператора CDQuad.</p>
+        </div>
+      </div>
+
+      <div class="problem-grid">
+        <div class="panel-card warn">
+          <span class="panel-badge">Выявленный эффект вырождения Θ(h²_G) → 0</span>
+          <h3>Комбинаторные ГНС (GRAND, CDE-GRAND, AdaCDE)</h3>
+          <p style="margin:0;color:#475569;font-size:14.5px;">
+            На молекулярных графах фиксированной ковалентной топологии (<code>ogbg-moltox21</code>) одношаговый RBF-переключатель в архитектуре автора <strong>GRADE</strong> повышает <code>ROC-AUC</code> до <strong>0,745</strong>. Однако на пространственных сетках изображений ситуация меняется:
+          </p>
+          <ul>
+            <li>При измельчении шага сетки <code>h_G → 0</code> разность в соседних узлах убывает как <code>u_j − u_i = O(h_G)</code>, и локальный вентиль <code>1 − exp(−γ(u_i − u_j)²)</code> вырождается со скоростью <strong>Θ(h²_G) → 0</strong>, выключая конвективный перенос.</li>
+            <li>Строчно-стохастическое <code>softmax</code>-внимание на стыке сеток со скачком шага <code>2:1</code> порождает нефизический паразитный снос порядка <code>Θ(h⁻¹_G)</code>.</li>
+            <li>Отсутствует статистический сертификат погрешности площади и барицентра на новой целевой сетке.</li>
+          </ul>
+        </div>
+
+        <div class="panel-card good">
+          <span class="panel-badge">Предложенное решение · Комплекс CDQuad</span>
+          <h3>Континуально-согласованная квадратура и сертификат</h3>
+          <p style="margin:0;color:#475569;font-size:14.5px;">
+            Физический закон (6 интерпретируемых параметров среды на области <code>Ω = (0,1)²</code>) полностью отделён от геометрии конкретной расчётной триангуляции:
+          </p>
+          <ul>
+            <li><strong>P₁-жёсткость + ячейки Дональда:</strong> анизотропный тензор диффузии <code>K(x)</code> интегрируется в базисе Куранта, а антисимметричные противопоточные потоки <code>F_ij</code> — по замкнутым дуальным контурам с машинной бездивергентностью <code>3,47 × 10⁻¹⁸</code>.</li>
+            <li><strong>Нелокальный вентиль физического радиуса r₀ &gt; 0:</strong> взвешенная площадями ячеек <code>m_j</code> квадратура гауссова ядра сохраняет порядок аппроксимации <code>O(h_G)</code> при любом сгущении сетки.</li>
+            <li><strong>Эллиптический двойственный сертификат:</strong> зондирование на 15 модах Неймана в норме <code>H⁻¹_G</code> выдаёт гарантированный интервал ошибки без эталонного решателя за <code>4,2 мс</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive 15-Slide Presentation Viewer -->
+    <section id="presentation" class="section-block">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Доклад к защите реферата</div>
+          <h2 class="section-title">Интерактивная презентация проекта (15 слайдов)</h2>
+          <p class="section-sub">Используйте клавиши <code>←</code> / <code>→</code>, миниатюры ниже или кликните по слайду для полноэкранного просмотра.</p>
+        </div>
+      </div>
+
+      <div class="deck-shell">
+        <div class="deck-toolbar">
+          <div class="deck-status">
+            <span id="slideCounter">Слайд 1 из 15</span>
+            <span style="opacity:0.45">|</span>
+            <span style="color:#94a3b8;font-weight:500;">Certified Cross-Scale Graph Morphometry</span>
+          </div>
+          <div class="deck-controls">
+            <button class="deck-btn" id="btnPrevSlide" type="button">← Назад</button>
+            <button class="deck-btn" id="btnNextSlide" type="button">Вперёд →</button>
+            <button class="deck-btn" id="btnFullscreenSlide" type="button">⛶ На весь экран</button>
+            <a class="deck-btn" href="../Certified_Cross-Scale_Graph_Morphometry.pdf" target="_blank" rel="noopener">⬇ PDF (17 МБ)</a>
+          </div>
+        </div>
+
+        <div class="deck-stage">
+          <button class="deck-nav-zone prev" id="stagePrev" type="button" aria-label="Предыдущий слайд">‹</button>
+          <img id="activeSlideImg" src="../assets/slides_v2/slide_01.webp" alt="Слайд презентации 1">
+          <button class="deck-nav-zone next" id="stageNext" type="button" aria-label="Следующий слайд">›</button>
+        </div>
+
+        <div class="deck-progress">
+          <div class="deck-progress-bar" id="slideProgress"></div>
+        </div>
+
+        <div class="deck-thumbs" id="slideThumbs"></div>
+      </div>
+    </section>
+
+    <!-- Architecture & Mathematics -->
+    <section id="architecture" class="section-block">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Математическое и программное обеспечение</div>
+          <h2 class="section-title">Математическое ядро и модульная архитектура CDQuad</h2>
+          <p class="section-sub">Три теоретических столпа метода и четыре слабосвязанных модуля открытого пакета на базе <code>NumPy</code> и <code>SciPy CSR/CSC</code>.</p>
+        </div>
+      </div>
+
+      <div class="math-grid">
+        <div class="math-card">
+          <div class="math-step">1. Дискретный закон сохранения</div>
+          <h3>Система ОДУ на ячейках Дональда</h3>
+          <div class="formula-box">
+            m_i du_i/dt = Σ (1 − α_ij) W_ij(K)(u_j − u_i)<br>
+            &nbsp;&nbsp;− Σ α_ij (F⁺_ij u_i − F⁻_ij u_j) − λ_r m_i u_i
+          </div>
+          <p>
+            Потоки <code>F_ij</code> интегрируются 3-точечной квадратурой Гаусса—Лежандра по граням <code>Γ*_ij</code>. Бездивергентность <code>Σ_j F_ij = 0</code> полностью выводит число Пекле <code>Pe</code> из экспоненты Гронуолла.
+          </p>
+        </div>
+
+        <div class="math-card">
+          <div class="math-step">2. Сертификация без эталона</div>
+          <h3>Двойственный дефект в H⁻¹_G и Split CP</h3>
+          <div class="formula-box">
+            δ̂₋₁(G; ψ) = ⟨d_G(ψ), E⁻¹_G d_G(ψ)⟩¹ᐟ² / ‖ψ‖_H²<br>
+            Û_{1−α}(G; T) = q̂_{1−α} · B̂(G; T)
+          </div>
+          <p>
+            Оператор Рисса <code>E_G = M_G + κ⁻¹_min S_G(K)</code> предфакторизуется один раз для всех 15 косинусных мод Неймана, обеспечивая покрытие <code>≥ 1 − α − d_TV</code>.
+          </p>
+        </div>
+
+        <div class="math-card">
+          <div class="math-step">3. Устойчивая морфометрия</div>
+          <h3>Глобально липшицевы дескрипторы</h3>
+          <div class="formula-box">
+            M₀(u) = ∫_Ω σ_η(u(x)) dx, &nbsp; L_{M₀} = 1 / (4η)<br>
+            M₁(u) = M₀⁻¹ ∫_Ω x σ_η(u) dx, &nbsp; L_{M₁} = √2 / (4η m₀)
+          </div>
+          <p>
+            Логистическое сглаживание порога <code>σ_η</code> устраняет разрывность бинарной сегментации (усиление <code>4,17</code> вместо скачка <code>250×</code>) и переносит сертификат на площадь и барицентр.
+          </p>
+        </div>
+      </div>
+
+      <div class="arch-explorer">
+        <div class="arch-tabs" id="archTabs">
+          <button class="arch-tab active" data-mod="meshes" type="button">
+            <div class="arch-tab-name">src/meshes.py <span>O(N log N)</span></div>
+            <div class="arch-tab-sub">Триангуляции Делоне, ячейки Дональда, SLIC RAG и CSR-матрицы подъёма</div>
+          </button>
+          <button class="arch-tab" data-mod="operators" type="button">
+            <div class="arch-tab-name">src/operators.py <span>O(N^1.2)</span></div>
+            <div class="arch-tab-sub">Векторизованная P₁-жёсткость K(x), upwind-потоки и решатели CN / IMEX</div>
+          </button>
+          <button class="arch-tab" data-mod="certificate" type="button">
+            <div class="arch-tab-name">src/certificate.py <span>4,2 мс</span></div>
+            <div class="arch-tab-sub">Зондирование 15 мод Неймана в H⁻¹_G и split-conformal калибровка</div>
+          </button>
+          <button class="arch-tab" data-mod="descriptors" type="button">
+            <div class="arch-tab-name">src/descriptors.py <span>O(M_eval)</span></div>
+            <div class="arch-tab-sub">Липшицева площадь M₀, барицентр M₁, скорость фронта и диагностика SLIC</div>
+          </button>
+        </div>
+
+        <div class="arch-detail" id="archDetail">
+          <div>
+            <div class="arch-detail-header">
+              <h3 id="archTitle">Модуль генерации сеток и геометрии (src/meshes.py)</h3>
+              <span class="arch-complexity" id="archBadge">2,9 мс при N = 3025</span>
+            </div>
+            <p id="archDesc">
+              Строит регулярные решётки аппаратного биннинга, возмущённые и сглаженные по Ллойду триангуляции Делоне, вырожденные сенсорные облака со «слепыми пятнами» и несимплициальные графы суперпикселей SLIC. Инкапсулирует метрику в неизменяемый контейнер MeshData и кэширует CSR-оператор продолжения P_G на квадратурную решётку 160×160.
+            </p>
+          </div>
+          <pre class="code-snippet" id="archCode">@dataclass
+class MeshData:
+    coords: np.ndarray        # (N, 2) координаты узлов в Ω = [0, 1]²
+    triangles: np.ndarray     # (M, 3) симплексы триангуляции Делоне
+    masses: np.ndarray        # (N,) площади барицентрических ячеек Дональда |D_i|
+    h_max: float              # максимальный диаметр элемента h_G
+    shape_reg: float          # параметр регулярности формы ρ(T_h)
+    prolong_csr: sparse.csr_matrix  # оператор подъёма P_G на сетку 160×160</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Experimental Verification & Interactive Gallery -->
+    <section id="benchmarks" class="section-block">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Воспроизводимые вычислительные протоколы (зерно 20261122)</div>
+          <h2 class="section-title">Экспериментальная верификация и морфометрия живых клеток</h2>
+          <p class="section-sub">Переключайте вкладки для просмотра векторных иллюстраций реферата (клик по изображению открывает полный размер).</p>
+        </div>
+      </div>
+
+      <div class="fig-tabs" id="figTabs">
+        <button class="fig-tab active" data-fig="0" type="button">1. Перенос поля 18×18 → 54×54</button>
+        <button class="fig-tab" data-fig="1" type="button">2. Масштаб Пекле и коллапс AdaCDE</button>
+        <button class="fig-tab" data-fig="2" type="button">3. Конформный сертификат и OOD</button>
+        <button class="fig-tab" data-fig="3" type="button">4. Живое ядро NPCsingleNucleus.tif</button>
+        <button class="fig-tab" data-fig="4" type="button">5. Классы графовых дискретизаций</button>
+        <button class="fig-tab" data-fig="5" type="button">6. Динамика публикаций 2018–2026</button>
+      </div>
+
+      <div class="fig-showcase">
+        <div class="fig-img-wrap">
+          <img id="activeFigImg" src="../assets/web/fig4_field_comparison_2d.webp" alt="Двумерное сопоставление переноса между разрешениями">
+        </div>
+        <div class="fig-caption">
+          <div>
+            <h4 id="activeFigTitle">Двумерная визуализация переноса без дообучения с 18×18 на 54×54 (T = 0,35)</h4>
+            <p id="activeFigDesc">Контур мигрирующего фронта CDQuad на мелкой сетке 54×54 неотличим от континуального эталона u*(x, T), тогда как фронт дипломной модели AdaCDE замирает около начального положения из-за вырождения локального вентиля.</p>
+          </div>
+          <span class="badge-win" id="activeFigMetric">Ошибка L²: 0,00146 (↓ 2,28×)</span>
+        </div>
+      </div>
+
+      <div class="bench-card">
+        <h3 style="margin:0 0 14px;color:var(--bg-navy);font-size:18px;">Сводная таблица переносимости без дообучения в синтетической и реальной флуоресцентной микроскопии</h3>
+        <table class="bench-table">
+          <thead>
+            <tr>
+              <th>Протокол и целевая сетка</th>
+              <th>Модель</th>
+              <th>Ошибка поля L²(Ω)</th>
+              <th>Площадь |ΔM₀|</th>
+              <th>Барицентр ‖ΔM₁‖₂</th>
+              <th>Скорость фронта / дрейф</th>
+              <th>Статус переноса</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="highlight">
+              <td>Синтетика: 18×18 → <strong>54×54</strong> (рост узлов 8,4×)</td>
+              <td><strong>CDQuad (автор)</strong></td>
+              <td><strong>0,00146 ± 0,00024</strong></td>
+              <td><strong>0,00039</strong></td>
+              <td><strong>0,00027</strong></td>
+              <td><strong>0,00043</strong> (скор.)</td>
+              <td><span class="badge-win">Рост точности в 2,28× (100 % серт.)</span></td>
+            </tr>
+            <tr>
+              <td>Синтетика: 18×18 → 54×54 (рост узлов 8,4×)</td>
+              <td>AdaCDE [3-А]</td>
+              <td>0,04251 ± 0,00149</td>
+              <td>0,00248</td>
+              <td>0,00690</td>
+              <td>0,01965 (скор.)</td>
+              <td><span class="badge-fail">Замирание фронта Θ(h²_G)</span></td>
+            </tr>
+            <tr>
+              <td>Синтетика: 18×18 → 54×54 (рост узлов 8,4×)</td>
+              <td>CDE-GRAND</td>
+              <td>0,04983 ± 0,00213</td>
+              <td>0,01006</td>
+              <td>0,00642</td>
+              <td>0,01760 (скор.)</td>
+              <td><span class="badge-fail">Деградация в 2,65×</span></td>
+            </tr>
+            <tr class="highlight">
+              <td>Синтетика: нерегулярная <strong>Делоне (N = 1225)</strong></td>
+              <td><strong>CDQuad (автор)</strong></td>
+              <td><strong>0,00225 ± 0,00031</strong></td>
+              <td><strong>0,00020</strong></td>
+              <td><strong>0,00023</strong></td>
+              <td><strong>0,00032</strong> (скор.)</td>
+              <td><span class="badge-win">100 % покрытие (Û₀,₉₀ = 0,00351)</span></td>
+            </tr>
+            <tr>
+              <td>Синтетика: суперпиксели SLIC RAG (K ≈ 300)</td>
+              <td>CDQuad (диагностика)</td>
+              <td>0,02209 ± 0,00158</td>
+              <td>0,00125</td>
+              <td>0,00183</td>
+              <td>0,00417 (скор.)</td>
+              <td><span class="badge-win">Флаг RAG: Û₀,₉₀ = 0,07286</span></td>
+            </tr>
+            <tr class="highlight">
+              <td>Живая клетка <code>NPCsingleNucleus.tif</code>: <strong>30×30 → 90×90</strong></td>
+              <td><strong>CDQuad (автор)</strong></td>
+              <td><strong>0,1266</strong></td>
+              <td>0,02389</td>
+              <td>0,05321</td>
+              <td><strong>0,0160</strong> (дрейф)</td>
+              <td><span class="badge-win">Дрейф ниже в 4,1–4,4×</span></td>
+            </tr>
+            <tr>
+              <td>Живая клетка <code>NPCsingleNucleus.tif</code>: 30×30 → 90×90</td>
+              <td>AdaCDE / CDE-GRAND</td>
+              <td>0,1325 / 0,1390</td>
+              <td>0,01837 / 0,04093</td>
+              <td>0,03455 / 0,03359</td>
+              <td>0,0655 / 0,0700 (дрейф)</td>
+              <td><span class="badge-fail">Сильный межмасштабный дрейф</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Publications & Reproducibility -->
+    <section id="publications" class="section-block">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Апробация и открытая наука</div>
+          <h2 class="section-title">Научные публикации автора и воспроизведение расчётов</h2>
+          <p class="section-sub">Все 4 работы соискателя по теме исследования и команды быстрого запуска вычислительных протоколов.</p>
+        </div>
+      </div>
+
+      <div class="pub-grid">
+        <div class="pub-card">
+          <div>
+            <span class="pub-num">[1-А] · Журнал ВАК РБ</span>
+            <h3 class="pub-title">Адаптивные графовые нейронные сети конвекции-диффузии для гетерогенных графов</h3>
+            <p class="pub-venue">А. С. Довгий, К. В. Василевский, А. М. Недзьведь // Вестник БГУ. Серия 1, Физика. Математика. Информатика. — 2026. — В печати.</p>
+          </div>
+          <a class="pub-link" href="../ДовгийАС_Реферат.pdf" target="_blank" rel="noopener">См. результаты в тексте реферата →</a>
+        </div>
+
+        <div class="pub-card">
+          <div>
+            <span class="pub-num">[2-А] · Междунар. конф. БГУИР (опубликовано)</span>
+            <h3 class="pub-title">Графовая нейронная сеть на основе адаптивного уравнения реакции-адвекции-диффузии для задачи классификации молекулярных графов</h3>
+            <p class="pub-venue">А. С. Довгий, К. В. Василевский // BIG DATA and Advanced Analytics : сб. науч. ст. XII Междунар. науч.-практ. конф., Минск, 23 апр. 2026 г. — Минск : БГУИР, 2026. — С. 319–329.</p>
+          </div>
+          <a class="pub-link" href="https://libeldoc.bsuir.by/bitstream/123456789/63594/4/Dovgij_Grafovaya.pdf" target="_blank" rel="noopener">Открыть PDF в репозитории БГУИР →</a>
+        </div>
+
+        <div class="pub-card">
+          <div>
+            <span class="pub-num">[3-А] · Дипломная работа ФПМИ БГУ</span>
+            <h3 class="pub-title">Исследование и развитие нейронных сетей конвекции-диффузии для задач машинного обучения на графах</h3>
+            <p class="pub-venue">А. С. Довгий ; науч. рук. К. В. Василевский ; Белорусский государственный университет, ФПМИ. — Минск, 2026. — 85 с.</p>
+          </div>
+          <span style="font-size:13px;color:#64748b;">Базовая комбинаторная модель AdaCDE для сравнительного анализа</span>
+        </div>
+
+        <div class="pub-card">
+          <div>
+            <span class="pub-num">[4-А] · Конференция БГУ</span>
+            <h3 class="pub-title">Обучаемое анизотропное ядро в графовых сетях конвекции-диффузии</h3>
+            <p class="pub-venue">А. С. Довгий, К. В. Василевский // Сборник работ 83-й научной конференции студентов и аспирантов БГУ. — Минск : БГУ, 2026. — В печати.</p>
+          </div>
+          <a class="pub-link" href="https://github.com/ihuod/BSU-FIT/tree/main/src" target="_blank" rel="noopener">Программная реализация в пакете src/ →</a>
+        </div>
+      </div>
+
+      <div class="repro-box">
+        <div>
+          <h3>Полная воспроизводимость за 1 минуту на CPU</h3>
+          <p>Комплекс реализован на чистом открытом стеке Python 3.11 (<code>NumPy</code>, <code>SciPy CSR/CSC</code>, <code>scikit-image</code>, <code>tifffile</code>) с фиксированным зерном генератора <code>20261122</code> без необходимости в GPU.</p>
+          <div class="cli-wrap">
+            <button class="copy-btn" id="copyCliBtn" type="button">Копировать</button>
+            <pre id="cliCommands">git clone https://github.com/ihuod/BSU-FIT.git
+cd BSU-FIT && pip install -r requirements.txt
+python -m src.exp1_sanity_and_convergence
+python -m src.exp2_certificate_and_shift
+python -m src.exp3_applied_morphometry</pre>
+          </div>
+        </div>
+        <div class="qr-card">
+          <img src="../assets/web/qr_code.svg" alt="QR-код веб-сайта проекта на GitHub Pages">
+          <span>Сканируйте для перехода<br>ihuod.github.io/BSU-FIT</span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Lightbox Modal -->
+  <div class="lightbox" id="lightbox">
+    <button class="lightbox-close" id="lightboxClose" type="button" aria-label="Закрыть">×</button>
+    <img id="lightboxImg" src="" alt="Увеличенная иллюстрация">
+  </div>
+
+  <footer>
+    <div class="footer-inner">
+      <div>
+        © 2026 <strong>Довгий Александр Сергеевич</strong> · ФПМИ БГУ, кафедра теории вероятностей и математической статистики.<br>
+        Контактный e-mail: <a href="mailto:aliaksandr_douhi@epam.com">aliaksandr_douhi@epam.com</a>
+      </div>
+      <div>
+        <a href="../ДовгийАС_Реферат.pdf" target="_blank" rel="noopener">Реферат PDF</a> &nbsp;·&nbsp;
+        <a href="../Certified_Cross-Scale_Graph_Morphometry.pdf" target="_blank" rel="noopener">Презентация PDF</a> &nbsp;·&nbsp;
+        <a href="https://github.com/ihuod/BSU-FIT" target="_blank" rel="noopener">GitHub Repository</a> &nbsp;·&nbsp;
+        Лицензия MIT
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // 1. Interactive Hero Delaunay-like Spatial Graph Canvas
+    (function initHeroMesh() {
+      const canvas = document.getElementById('meshCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let w = 0, h = 0, nodes = [], edges = [];
+      let mouse = { x: -999, y: -999 };
+
+      function rebuild() {
+        w = canvas.width = canvas.offsetWidth;
+        h = canvas.height = canvas.offsetHeight;
+        const cols = Math.max(8, Math.floor(w / 115));
+        const rows = Math.max(5, Math.floor(h / 105));
+        nodes = [];
+        for (let r = 0; r <= rows; r++) {
+          for (let c = 0; c <= cols; c++) {
+            const jx = (r > 0 && r < rows && c > 0 && c < cols) ? (Math.sin(r * 7.3 + c * 3.1) * 22) : 0;
+            const jy = (r > 0 && r < rows && c > 0 && c < cols) ? (Math.cos(r * 4.7 + c * 5.9) * 20) : 0;
+            nodes.push({
+              bx: (c / cols) * w + jx,
+              by: (r / rows) * h + jy,
+              x: 0, y: 0,
+              phase: r * 0.65 + c * 0.45
+            });
+          }
+        }
+        edges = [];
+        const stride = cols + 1;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const a = r * stride + c;
+            const b = a + 1;
+            const d = a + stride;
+            const e = d + 1;
+            edges.push([a, b], [a, d], [a, e]);
+            if (r === rows - 1) edges.push([d, e]);
+            if (c === cols - 1) edges.push([b, e]);
+          }
+        }
+      }
+
+      window.addEventListener('resize', rebuild);
+      canvas.parentElement.addEventListener('mousemove', function(ev) {
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = ev.clientX - rect.left;
+        mouse.y = ev.clientY - rect.top;
+      });
+      rebuild();
+
+      function draw(ts) {
+        const t = ts * 0.0012;
+        ctx.clearRect(0, 0, w, h);
+        for (let i = 0; i < nodes.length; i++) {
+          const n = nodes[i];
+          n.x = n.bx + Math.sin(t + n.phase) * 5.5;
+          n.y = n.by + Math.cos(t * 0.85 + n.phase) * 5.5;
+        }
+        ctx.lineWidth = 1;
+        for (let i = 0; i < edges.length; i++) {
+          const p = nodes[edges[i][0]], q = nodes[edges[i][1]];
+          const mx = 0.5 * (p.x + q.x), my = 0.5 * (p.y + q.y);
+          const wave = 0.5 + 0.5 * Math.sin(mx * 0.006 - t * 1.4 + my * 0.004);
+          const dMouse = Math.hypot(mx - mouse.x, my - mouse.y);
+          const boost = dMouse < 190 ? (1 - dMouse / 190) * 0.45 : 0;
+          if (wave > 0.72) {
+            ctx.strokeStyle = 'rgba(245, 158, 11, ' + (0.16 + boost) + ')';
+          } else {
+            ctx.strokeStyle = 'rgba(56, 189, 248, ' + (0.14 + boost) + ')';
+          }
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(q.x, q.y);
+          ctx.stroke();
+        }
+        for (let i = 0; i < nodes.length; i++) {
+          const n = nodes[i];
+          const wave = 0.5 + 0.5 * Math.sin(n.x * 0.006 - t * 1.4 + n.y * 0.004);
+          ctx.fillStyle = wave > 0.74 ? 'rgba(251, 191, 36, 0.72)' : 'rgba(103, 232, 249, 0.55)';
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, wave > 0.74 ? 2.6 : 1.9, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        requestAnimationFrame(draw);
+      }
+      requestAnimationFrame(draw);
+    })();
+
+    // 2. Interactive 15-Slide Presentation Deck
+    const TOTAL_SLIDES = 15;
+    let currentSlide = 1;
+    const slideImg = document.getElementById('activeSlideImg');
+    const slideCounter = document.getElementById('slideCounter');
+    const slideProgress = document.getElementById('slideProgress');
+    const thumbsWrap = document.getElementById('slideThumbs');
+
+    function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+    function slideUrl(n) { return '../assets/slides_v2/slide_' + pad2(n) + '.webp'; }
+
+    for (let s = 1; s <= TOTAL_SLIDES; s++) {
+      const div = document.createElement('div');
+      div.className = 'deck-thumb' + (s === 1 ? ' active' : '');
+      div.innerHTML = '<img src="' + slideUrl(s) + '" alt="Слайд ' + s + '" loading="lazy"><span>' + s + '</span>';
+      div.addEventListener('click', function() { setSlide(s); });
+      thumbsWrap.appendChild(div);
+    }
+
+    function setSlide(n) {
+      if (n < 1) n = TOTAL_SLIDES;
+      if (n > TOTAL_SLIDES) n = 1;
+      currentSlide = n;
+      slideImg.src = slideUrl(n);
+      slideImg.alt = 'Слайд презентации ' + n;
+      slideCounter.textContent = 'Слайд ' + n + ' из ' + TOTAL_SLIDES;
+      slideProgress.style.width = ((n / TOTAL_SLIDES) * 100).toFixed(2) + '%';
+      const thumbs = thumbsWrap.querySelectorAll('.deck-thumb');
+      thumbs.forEach(function(el, idx) {
+        el.classList.toggle('active', idx + 1 === n);
+      });
+      if (thumbs[n - 1]) {
+        thumbs[n - 1].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+
+    document.getElementById('btnPrevSlide').addEventListener('click', function() { setSlide(currentSlide - 1); });
+    document.getElementById('btnNextSlide').addEventListener('click', function() { setSlide(currentSlide + 1); });
+    document.getElementById('stagePrev').addEventListener('click', function() { setSlide(currentSlide - 1); });
+    document.getElementById('stageNext').addEventListener('click', function() { setSlide(currentSlide + 1); });
+
+    // Lightbox modal for slides & figures
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightboxImg');
+    function openLightbox(src) {
+      lightboxImg.src = src;
+      lightbox.classList.add('open');
+    }
+    slideImg.addEventListener('click', function() { openLightbox(slideImg.src); });
+    document.getElementById('btnFullscreenSlide').addEventListener('click', function() { openLightbox(slideImg.src); });
+    document.getElementById('activeFigImg').addEventListener('click', function() { openLightbox(this.src); });
+    document.getElementById('lightboxClose').addEventListener('click', function() { lightbox.classList.remove('open'); });
+    lightbox.addEventListener('click', function(e) { if (e.target === lightbox) lightbox.classList.remove('open'); });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') lightbox.classList.remove('open');
+      if (e.key === 'ArrowLeft') setSlide(currentSlide - 1);
+      if (e.key === 'ArrowRight') setSlide(currentSlide + 1);
+    });
+
+    // 3. Interactive Architecture Module Explorer
+    const ARCH_DATA = {
+      meshes: {
+        title: 'Модуль генерации сеток и геометрии (src/meshes.py)',
+        badge: '2,9 мс при N = 3025 · O(N log N)',
+        desc: 'Строит регулярные решётки аппаратного биннинга, возмущённые и сглаженные по Ллойду триангуляции Делоне, вырожденные сенсорные облака со «слепыми пятнами» и несимплициальные графы суперпикселей SLIC. Инкапсулирует метрику в неизменяемый контейнер MeshData и кэширует CSR-оператор продолжения P_G на квадратурную решётку 160×160.',
+        code: [
+          '@dataclass',
+          'class MeshData:',
+          '    coords: np.ndarray        # (N, 2) координаты узлов в Ω = [0, 1]²',
+          '    triangles: np.ndarray     # (M, 3) симплексы триангуляции Делоне',
+          '    masses: np.ndarray        # (N,) площади барицентрических ячеек Дональда |D_i|',
+          '    h_max: float              # максимальный диаметр элемента h_G',
+          '    shape_reg: float          # параметр регулярности формы ρ(T_h)',
+          '    prolong_csr: sparse.csr_matrix  # оператор подъёма P_G на сетку 160×160'
+        ].join(String.fromCharCode(10))
+      },
+      operators: {
+        title: 'Вычислительное ядро оператора CDQuad (src/operators.py)',
+        badge: '1,8 мс сборка + 14,6 мс решатель · SciPy CSR/LU',
+        desc: 'Выполняет векторизованную сборку кусочно-линейной жёсткости тензора K(x) и 3-точечных квадратур Гаусса—Лежандра на дуальных гранях Дональда через 64-битные ключи рёбер без циклов Python. Поддерживает предфакторизованную схему Кранка—Николсон и полунеявную схему IMEX-BDF1 с нелокальным гауссовым вентилем радиуса r₀ > 0.',
+        code: [
+          '@dataclass',
+          'class PhysicalLawParams:',
+          '    kappa1: float = 0.02      # продольная диффузия вдоль волокон среды',
+          '    kappa2: float = 0.005     # поперечная диффузия (анизотропия χ = κ₁/κ₂)',
+          '    theta_fn: Callable        # ориентация тензора K(x) = R(θ)ᵀ diag(κ₁,κ₂) R(θ)',
+          '    psi_fn: Callable          # функция тока бездивергентной скорости v = ∇⊥ψ',
+          '    alpha_max: float = 0.32   # амплитуда нелокального вентиля в окне r₀ = 0.15'
+        ].join(String.fromCharCode(10))
+      },
+      certificate: {
+        title: 'Эллиптический двойственный сертификат (src/certificate.py)',
+        badge: '4,2 мс по 15 модам Неймана · r = 0,9803',
+        desc: 'Аналитически вычисляет функциональную невязку дискретного оператора на словаре из 15 собственных косинусных мод задачи Неймана с вычетом конормального граничного потока, обращает разреженный оператор Рисса E_G = M_G + κ⁻¹_min S_G(K) и строит верхнюю границу ошибки Û_{1−α}(G) методом split-conformal калибровки без эталонного решателя.',
+        code: [
+          '# Зондирование в двойственной норме H⁻¹_G с единой LU-факторизацией E_G:',
+          'solve_riesz = factorized((M_G + (1.0 / kappa_min) * S_G).tocsc())',
+          'for p, q in NEUMANN_15_MODES:',
+          '    residual = apply_discrete_op(G, psi_pq) - m * eval_continuum_op(psi_pq)',
+          '    dual_sq = float(residual @ solve_riesz(residual)) / (h2_norm ** 2)',
+          'U_bound = q_conformal * delta_dual_rms * time_factor'
+        ].join(String.fromCharCode(10))
+      },
+      descriptors: {
+        title: 'Морфометрические дескрипторы структуры (src/descriptors.py)',
+        badge: '0,8 мс · 100 % покрытие интервалов',
+        desc: 'Рассчитывает глобально липшицеву сглаженную площадь M₀(u), координаты барицентра M₁(u) и среднюю скорость миграции фронта V(u) с шириной переходного слоя η > 0. Автоматически переносит конформный сертификат поля в доверительные интервалы ±L_Φ·Û_{1−α}(G) и сигнализирует о потере согласованности на несимплициальных графах SLIC.',
+        code: [
+          'def certified_morphometry(u_grid, U_l2_bound, theta=0.35, eta=0.06):',
+          '    sigma = 1.0 / (1.0 + np.exp(-(u_grid - theta) / eta))',
+          '    area = float(np.mean(sigma))',
+          '    L_area = 1.0 / (4.0 * eta)             # точная константа Липшица M₀',
+          '    L_cent = np.sqrt(2.0) / (4.0 * eta * area)  # константа Липшица M₁',
+          '    return {"area": (area, L_area * U_l2_bound), "cent_tol": L_cent * U_l2_bound}'
+        ].join(String.fromCharCode(10))
+      }
+    };
+
+    document.querySelectorAll('#archTabs .arch-tab').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('#archTabs .arch-tab').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        const d = ARCH_DATA[btn.getAttribute('data-mod')];
+        document.getElementById('archTitle').textContent = d.title;
+        document.getElementById('archBadge').textContent = d.badge;
+        document.getElementById('archDesc').textContent = d.desc;
+        document.getElementById('archCode').textContent = d.code;
+      });
+    });
+
+    // 4. Interactive Experimental Figures Gallery
+    const FIGS = [
+      {
+        src: '../assets/web/fig4_field_comparison_2d.webp',
+        title: 'Двумерная визуализация переноса без дообучения с 18×18 на 54×54 (T = 0,35)',
+        desc: 'Контур мигрирующего фронта CDQuad на мелкой сетке 54×54 неотличим от континуального эталона u*(x, T), тогда как фронт дипломной модели AdaCDE замирает около начального положения из-за вырождения локального вентиля.',
+        metric: 'Ошибка L²: 0,00146 (↓ 2,28×)'
+      },
+      {
+        src: '../assets/web/fig5_peclet_and_gate.webp',
+        title: 'Линейный масштаб ошибки по числу Пекле и устранение коллапса вентиля',
+        desc: 'Слева: строго линейный рост расхождения между сетками Делоне 16×16 и 48×48 при Pe ∈ [0, 100] (R² = 0,9998) без нефизических осцилляций. Справа: инвариантность континуального вентиля CDQuad против спада Θ(n⁻²_x) у AdaCDE.',
+        metric: 'R² = 0,9998 · 0 выбросов'
+      },
+      {
+        src: '../assets/web/fig6_conformal_ood.webp',
+        title: 'Калибровка конформного сертификата и стресс-тесты сдвига сеток (OOD)',
+        desc: 'Эмпирическое покрытие точно следует номинальному уровню 1 − α ∈ {0,85; 0,90; 0,95}, сохраняет 100 % покрытие при кубическом анизотропном растяжении сеток и на SLIC RAG и честно локализует границу применимости при «слепом пятне» датчика.',
+        metric: 'Сужение интервала −36,1 %'
+      },
+      {
+        src: '../assets/web/fig7_live_microscopy.webp',
+        title: 'Цейтраферная флуоресцентная микроскопия живого ядра NPCsingleNucleus.tif',
+        desc: 'Обучение параметров переноса и фотовыцветания на грубом биннинге 30×30 (ранние кадры) и перенос без дообучения на отложенные кадры разрешения 90×90 (рост числа узлов в 9 раз): четырёхкратное снижение межмасштабного дрейфа.',
+        metric: 'Дрейф 0,0160 (↓ 4,1–4,4×)'
+      },
+      {
+        src: '../assets/web/fig2_mesh_gallery.webp',
+        title: 'Четыре класса пространственных графовых дискретизаций области Ω = (0,1)²',
+        desc: 'Сопоставление регулярной решётки биннинга, адаптивной триангуляции Делоне с барицентрической ячейкой Дональда D_i, несимплициального графа суперпикселей SLIC RAG и сенсорной сетки с локальным пропуском.',
+        metric: 'Единая мера ∑ m_i = |Ω| = 1'
+      },
+      {
+        src: '../assets/web/fig1_pub_dynamics.webp',
+        title: 'Экспоненциальный рост публикаций за 2018–2026 гг. (arXiv и ScienceDirect)',
+        desc: 'Более чем 35-кратный рост числа работ по нейронным операторам и графовым УЧП в arXiv.org (с 14 до 530 в год) и 28-кратный рост работ по конформному предсказанию в анализе изображений в ScienceDirect.',
+        metric: 'Рост > 35× за 2018–2026 гг.'
+      }
+    ];
+
+    document.querySelectorAll('#figTabs .fig-tab').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('#figTabs .fig-tab').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        const f = FIGS[parseInt(btn.getAttribute('data-fig'), 10)];
+        document.getElementById('activeFigImg').src = f.src;
+        document.getElementById('activeFigTitle').textContent = f.title;
+        document.getElementById('activeFigDesc').textContent = f.desc;
+        document.getElementById('activeFigMetric').textContent = f.metric;
+      });
+    });
+
+    // 5. One-click Copy CLI Commands
+    document.getElementById('copyCliBtn').addEventListener('click', function() {
+      const text = document.getElementById('cliCommands').textContent;
+      navigator.clipboard.writeText(text).then(function() {
+        const btn = document.getElementById('copyCliBtn');
+        btn.textContent = 'Скопировано ✓';
+        setTimeout(function() { btn.textContent = 'Копировать'; }, 1800);
+      });
+    });
+  </script>
+</body>
+</html>

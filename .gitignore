@@ -1,0 +1,40 @@
+# Local virtual environments & Python caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# OS, Editor & Agent metadata
+.DS_Store
+.codemie/
+.gemini/
+.vscode/
+.idea/
+~$*
+
+# LaTeX auxiliary build artifacts (keep .tex, figures, and final .pdf)
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# Exclude unrelated workspace thesis drafts outside the BSU-FIT OIT project
+masters/
+referats/eng/
+word/
+bachelors.pdf
+dissertation.md
+prompt_gemini_carbon.md
+research_plan.md
+research_plan_v2.md
+referats/oit/БажановаНД_Реферат.docx
+referats/oit/ДовгийАС_Презентация.pdf
+referats/oit/ДовгийАС_Реферат.docx
+referats/oit/рецензия.pdf
+referats/oit/требования.pdf
+referats/oit/assets/slides/

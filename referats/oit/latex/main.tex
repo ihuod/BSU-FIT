@@ -1,0 +1,195 @@
+\documentclass[14pt,a4paper]{extreport}
+
+% Язык и шрифты (XeLaTeX, стандарт БГУ / ВАК РБ)
+\usepackage{fontspec}
+\usepackage[english,russian]{babel}
+\setmainfont{Times New Roman}
+\setsansfont{Arial}
+\setmonofont[Scale=0.82]{Menlo}
+
+% Тонкая типографика и защита от выхода строк за правое поле
+\usepackage{microtype}
+\hyphenpenalty=250
+\exhyphenpenalty=50
+\tolerance=2500
+\emergencystretch=3.5em
+\pretolerance=150
+\righthyphenmin=2
+\lefthyphenmin=2
+\widowpenalty=10000
+\clubpenalty=10000
+\renewcommand{\topfraction}{0.85}
+\renewcommand{\bottomfraction}{0.75}
+\renewcommand{\textfraction}{0.12}
+\renewcommand{\floatpagefraction}{0.75}
+
+\hyphenation{
+    кон-век-ци-он-но
+    диф-фу-зи-он-ных
+    три-ан-гу-ля-ци-ях
+    сер-ти-фи-ка-ции
+    мор-фо-мет-рии
+    су-пер-пик-се-лей
+    дис-кре-ти-за-ции
+}
+
+% Поля страницы по требованиям ОИТ и Инструкции ВАК РБ
+\usepackage[
+    left=30mm,
+    top=20mm,
+    right=15mm,
+    bottom=20mm
+]{geometry}
+\usepackage{indentfirst}
+\usepackage{setspace}
+\usepackage{lastpage}
+
+\setlength{\parindent}{1.25cm}
+\renewcommand{\baselinestretch}{1.15}
+
+% Цвета и гиперссылки
+\usepackage{xcolor}
+\definecolor{bsuBlue}{HTML}{1B365D}
+\definecolor{bsuAccent}{HTML}{27568B}
+\definecolor{bsuSoft}{HTML}{F0F4F9}
+\definecolor{bsuGreen}{HTML}{1E6B43}
+\definecolor{bsuSoftGreen}{HTML}{EBF7F0}
+\definecolor{bsuAmber}{HTML}{9C5700}
+\definecolor{bsuSoftAmber}{HTML}{FEF6E9}
+
+\usepackage[unicode]{hyperref}
+\hypersetup{
+    pdfstartview=FitH,
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=bsuAccent,
+    citecolor=black,
+    bookmarksnumbered=true,
+    unicode=true,
+    pdftitle={Межмасштабный перенос графовых моделей и сертификация морфометрии изображений},
+    pdfauthor={Довгий Александр Сергеевич}
+}
+
+% Математика
+\usepackage{amsmath,amsfonts,amssymb,amsthm,mathtools,bm}
+
+% Графика, векторные схемы TikZ и адаптивные таблицы строго в ширину листа
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{makecell}
+\usepackage{multirow}
+\usepackage{float}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc,fit,backgrounds}
+
+% Типы колонок tabularx с переносом без переполнения
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{C}{>{\centering\arraybackslash}X}
+\newcolumntype{R}{>{\raggedleft\arraybackslash}X}
+
+% Подписи к рисункам и таблицам по стандарту ВАК РБ (тире, без точки в конце)
+\usepackage[singlelinecheck=false]{caption}
+\DeclareCaptionLabelSeparator{emdash}{ -- }
+\captionsetup{labelsep=emdash}
+\captionsetup[figure]{justification=centering, font={small, bf}, skip=6pt}
+\captionsetup[table]{justification=raggedright, singlelinecheck=false, font={small, bf}, indention=0pt, skip=5pt}
+\addto\captionsrussian{\renewcommand{\figurename}{Рисунок}}
+
+% Оформление глав и разделов (аналогично магистерской диссертации)
+\usepackage{titlesec}
+
+\makeatletter
+\renewcommand*\l@chapter[2]{%
+  \ifnum \c@tocdepth >\m@ne
+    \addpenalty{-\@highpenalty}%
+    \vskip 0.8em \@plus\p@
+    \setlength\@tempdima{1.5em}%
+    \begingroup
+      \parindent \z@ \rightskip \@pnumwidth
+      \parfillskip -\@pnumwidth
+      \leavevmode \bfseries
+      \advance\leftskip\@tempdima
+      \hskip -\leftskip
+      #1\nobreak\normalfont\leaders\hbox{$\m@th
+        \mkern \@dotsep mu\hbox{.}\mkern \@dotsep
+        mu$}\hfill\nobreak\hb@xt@\@pnumwidth{\hss #2}\par
+      \penalty\@highpenalty
+    \endgroup
+  \fi}
+\makeatother
+
+\titleformat{\chapter}[display]
+{\centering\large\bfseries}{\chaptertitlename\ \thechapter}{8pt}{\large}
+\titlespacing*{\chapter}{0pt}{-18pt}{20pt}
+
+\titleformat{\section}[block]
+  {\normalsize\bfseries}
+  {\thesection\ }{0pt}{}
+\titlespacing{\section}
+  {\parindent}{2.6ex plus 0.8ex minus .2ex}{1.6ex plus .2ex}
+
+\titleformat{\subsection}[block]
+  {\normalsize\bfseries}
+  {\thesubsection\ }{0pt}{}
+\titlespacing{\subsection}
+  {\parindent}{2.2ex plus 0.6ex minus .2ex}{1.2ex plus .2ex}
+
+\addto\captionsrussian{%
+  \renewcommand{\contentsname}{\centering\large ОГЛАВЛЕНИЕ}%
+  \renewcommand{\chaptername}{ГЛАВА}
+  \renewcommand{\chaptertitlename}{ГЛАВА}
+}
+
+% Компактные списки и нумерация литературы ВАК
+\usepackage{enumitem}
+\setlist{nosep, labelindent=\parindent, leftmargin=*, labelsep=0.5em}
+
+\newcounter{litcnt}
+\newcommand{\lititem}[1]{%
+  \par\vspace{0.25ex}\refstepcounter{litcnt}\label{#1}%
+  \noindent\hspace{0pt}\makebox[2.0em][l]{\thelitcnt.}\hangindent=2.0em\hangafter=1\ignorespaces
+}
+
+\newcounter{alitcnt}
+\renewcommand{\thealitcnt}{\arabic{alitcnt}-А}
+\newcommand{\alititem}[1]{%
+  \par\vspace{0.25ex}\refstepcounter{alitcnt}\label{#1}%
+  \noindent\hspace{0pt}\makebox[2.8em][l]{\thealitcnt.}\hangindent=2.8em\hangafter=1\ignorespaces
+}
+
+\DeclareMathOperator{\divop}{div}
+\DeclareMathOperator{\diam}{diam}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\Pe}{Pe}
+
+\newcommand{\Real}{\mathbb{R}}
+\newcommand{\calT}{\mathcal{T}}
+\newcommand{\calN}{\mathcal{N}}
+\newcommand{\calM}{\mathcal{M}}
+\newcommand{\calL}{\mathcal{L}}
+\newcommand{\calP}{\mathcal{P}}
+
+\begin{document}
+
+\include{title}
+
+\tableofcontents
+\newpage
+
+\include{introduction}
+
+\include{chapter1}
+
+\include{chapter2}
+
+\include{chapter3}
+
+\include{conclusion}
+
+\include{literature}
+
+\include{appendix}
+
+\end{document}
